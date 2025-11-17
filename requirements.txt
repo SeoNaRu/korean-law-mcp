@@ -1,0 +1,10 @@
+fastmcp
+uvicorn
+pydantic
+python-dotenv
+requests
+beautifulsoup4
+lxml
+cachetools
+python-dateutil
+fastapi
