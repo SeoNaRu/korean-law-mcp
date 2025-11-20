@@ -66,52 +66,64 @@ class AdminRuleSearchRequest(BaseModel):
 
 
 # 실제 구현 함수들
-async def search_law_impl(req: LawSearchRequest):
+async def search_law_impl(req: LawSearchRequest, arguments: Optional[dict] = None):
     """법령 검색 구현"""
     try:
-        return await asyncio.to_thread(search_law, req.query, req.page, req.page_size)
+        if arguments is None:
+            arguments = {}
+        return await asyncio.to_thread(search_law, req.query, req.page, req.page_size, arguments)
     except Exception as e:
         return {"error": f"법령 검색 중 오류가 발생했습니다: {str(e)}"}
 
 
-async def get_law_detail_impl(req: LawDetailRequest):
+async def get_law_detail_impl(req: LawDetailRequest, arguments: Optional[dict] = None):
     """법령 상세 조회 구현"""
     try:
-        return await asyncio.to_thread(get_law_detail, req.law_id)
+        if arguments is None:
+            arguments = {}
+        return await asyncio.to_thread(get_law_detail, req.law_id, arguments)
     except Exception as e:
         return {"error": f"법령 상세 조회 중 오류가 발생했습니다: {str(e)}"}
 
 
-async def search_precedent_impl(req: PrecedentSearchRequest):
+async def search_precedent_impl(req: PrecedentSearchRequest, arguments: Optional[dict] = None):
     """판례 검색 구현"""
     try:
+        if arguments is None:
+            arguments = {}
         return await asyncio.to_thread(
             search_precedent, 
             req.query, 
             req.page, 
             req.page_size, 
-            req.court
+            req.court,
+            arguments
         )
     except Exception as e:
         return {"error": f"판례 검색 중 오류가 발생했습니다: {str(e)}"}
 
 
-async def get_precedent_detail_impl(req: PrecedentDetailRequest):
+async def get_precedent_detail_impl(req: PrecedentDetailRequest, arguments: Optional[dict] = None):
     """판례 상세 조회 구현"""
     try:
-        return await asyncio.to_thread(get_precedent_detail, req.precedent_id)
+        if arguments is None:
+            arguments = {}
+        return await asyncio.to_thread(get_precedent_detail, req.precedent_id, arguments)
     except Exception as e:
         return {"error": f"판례 상세 조회 중 오류가 발생했습니다: {str(e)}"}
 
 
-async def search_administrative_rule_impl(req: AdminRuleSearchRequest):
+async def search_administrative_rule_impl(req: AdminRuleSearchRequest, arguments: Optional[dict] = None):
     """행정규칙 검색 구현"""
     try:
+        if arguments is None:
+            arguments = {}
         return await asyncio.to_thread(
             search_administrative_rule, 
             req.query, 
             req.page, 
-            req.page_size
+            req.page_size,
+            arguments
         )
     except Exception as e:
         return {"error": f"행정규칙 검색 중 오류가 발생했습니다: {str(e)}"}
@@ -151,8 +163,118 @@ def temporary_env(overrides: dict):
 
 # HTTP 엔드포인트
 @api.get("/health")
-async def health_check():
+async def health_check_get():
+    """HTTP GET 엔드포인트: 서비스 상태 확인"""
     return await health_impl()
+
+@api.post("/health")
+async def health_check_post():
+    """HTTP POST 엔드포인트: 서비스 상태 확인"""
+    return await health_impl()
+
+
+# HTTP 엔드포인트: 도구 목록 조회
+@api.get("/tools")
+async def get_tools_http():
+    """HTTP 엔드포인트: 사용 가능한 도구 목록 조회"""
+    try:
+        # FastMCP의 내부 도구 목록 가져오기
+        tools_list = []
+        server = getattr(mcp, 'server', None)  # type: ignore
+        if server and hasattr(server, 'tools'):
+            tools = getattr(server, 'tools', {})  # type: ignore
+            for tool_name, tool in tools.items():
+                tool_info = {
+                    "name": tool_name,
+                    "description": getattr(tool, 'description', '') or '',
+                }
+                if hasattr(tool, 'parameters'):
+                    tool_info["parameters"] = getattr(tool, 'parameters', {})
+                else:
+                    tool_info["parameters"] = {}
+                tools_list.append(tool_info)
+        
+        # FastMCP 접근 실패 시 하드코딩된 목록 반환
+        if not tools_list:
+            mcp_logger.warning("FastMCP tools not accessible, returning hardcoded tool list")
+            tools_list = [
+                {
+                    "name": "health",
+                    "description": "서비스 상태 확인",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                },
+                {
+                    "name": "search_law_tool",
+                    "description": "법령을 키워드로 검색합니다.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "검색할 법령 키워드 (예: '민법', '상법')"},
+                            "page": {"type": "integer", "description": "페이지 번호 (기본값: 1)", "default": 1, "minimum": 1},
+                            "page_size": {"type": "integer", "description": "페이지당 결과 수 (기본값: 10, 최대: 50)", "default": 10, "minimum": 1, "maximum": 50}
+                        },
+                        "required": ["query"]
+                    }
+                },
+                {
+                    "name": "get_law_detail_tool",
+                    "description": "특정 법령의 상세 정보 및 전문(조문)을 조회합니다.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "law_id": {"type": "string", "description": "법령 ID (법령 검색 결과에서 얻은 법령ID)"}
+                        },
+                        "required": ["law_id"]
+                    }
+                },
+                {
+                    "name": "search_precedent_tool",
+                    "description": "판례를 키워드로 검색합니다.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "검색할 판례 키워드 (예: '손해배상', '계약')"},
+                            "page": {"type": "integer", "description": "페이지 번호 (기본값: 1)", "default": 1, "minimum": 1},
+                            "page_size": {"type": "integer", "description": "페이지당 결과 수 (기본값: 10, 최대: 50)", "default": 10, "minimum": 1, "maximum": 50},
+                            "court": {"type": "string", "description": "법원 구분 (예: '대법원', '헌법재판소')"}
+                        },
+                        "required": ["query"]
+                    }
+                },
+                {
+                    "name": "get_precedent_detail_tool",
+                    "description": "특정 판례의 상세 정보를 조회합니다.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "precedent_id": {"type": "string", "description": "판례 일련번호"}
+                        },
+                        "required": ["precedent_id"]
+                    }
+                },
+                {
+                    "name": "search_administrative_rule_tool",
+                    "description": "행정규칙을 키워드로 검색합니다.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "검색할 행정규칙 키워드"},
+                            "page": {"type": "integer", "description": "페이지 번호 (기본값: 1)", "default": 1, "minimum": 1},
+                            "page_size": {"type": "integer", "description": "페이지당 결과 수 (기본값: 10, 최대: 50)", "default": 10, "minimum": 1, "maximum": 50}
+                        },
+                        "required": ["query"]
+                    }
+                }
+            ]
+        
+        return tools_list
+    except Exception as e:
+        mcp_logger.exception("Error getting tools list: %s", str(e))
+        return []
 
 
 # HTTP 엔드포인트: 도구 호출
@@ -163,6 +285,19 @@ async def call_tool_http(tool_name: str, request_data: dict):
 
     async def run_sync(func, *args, **kwargs):
         return await asyncio.to_thread(func, *args, **kwargs)
+    
+    # 공통 타입 변환 함수들
+    def convert_float_to_int(data: dict, keys: list):
+        """지정된 키의 float 값을 int로 변환"""
+        for key in keys:
+            if key in data and isinstance(data[key], float):
+                data[key] = int(data[key])
+    
+    def convert_to_str(data: dict, keys: list):
+        """지정된 키의 값을 문자열로 변환"""
+        for key in keys:
+            if key in data and data[key] is not None and not isinstance(data[key], str):
+                data[key] = str(data[key])
 
     try:
         # 크레덴셜 추출
@@ -178,58 +313,69 @@ async def call_tool_http(tool_name: str, request_data: dict):
                 masked["LAW_API_KEY"] = masked["LAW_API_KEY"][:6] + "***"
             mcp_logger.debug("Applying temp env | %s", masked)
 
-        async def run_with_env(coro_func):
+        async def run_with_env(func, *args, **kwargs):
             with temporary_env(creds):
-                return await coro_func
+                return await run_sync(func, *args, **kwargs)
 
         if tool_name == "health":
-            return await run_with_env(health_impl())
+            return await health_impl()
 
         if tool_name == "search_law_tool":
             query = request_data.get("query")
             if not query:
                 return {"error": "Missing required parameter: query"}
+            # 타입 변환
+            convert_float_to_int(request_data, ["page", "page_size"])
+            convert_to_str(request_data, ["query"])
             page = request_data.get("page", 1)
             page_size = request_data.get("page_size", 10)
             return await run_with_env(
-                run_sync(search_law, query, page, page_size, request_data)
+                search_law, query, page, page_size, arguments=request_data
             )
 
         if tool_name == "get_law_detail_tool":
             law_id = request_data.get("law_id")
             if not law_id:
                 return {"error": "Missing required parameter: law_id"}
+            convert_to_str(request_data, ["law_id"])
             return await run_with_env(
-                run_sync(get_law_detail, law_id, request_data)
+                get_law_detail, law_id, arguments=request_data
             )
 
         if tool_name == "search_precedent_tool":
             query = request_data.get("query")
             if not query:
                 return {"error": "Missing required parameter: query"}
+            # 타입 변환
+            convert_float_to_int(request_data, ["page", "page_size"])
+            convert_to_str(request_data, ["query", "court"])
             page = request_data.get("page", 1)
             page_size = request_data.get("page_size", 10)
             court = request_data.get("court")
             return await run_with_env(
-                run_sync(search_precedent, query, page, page_size, court, request_data)
+                search_precedent, query, page, page_size, court, arguments=request_data
             )
 
         if tool_name == "get_precedent_detail_tool":
             precedent_id = request_data.get("precedent_id")
             if not precedent_id:
                 return {"error": "Missing required parameter: precedent_id"}
+            convert_to_str(request_data, ["precedent_id"])
             return await run_with_env(
-                run_sync(get_precedent_detail, precedent_id, request_data)
+                get_precedent_detail, precedent_id, arguments=request_data
             )
 
         if tool_name == "search_administrative_rule_tool":
             query = request_data.get("query")
             if not query:
                 return {"error": "Missing required parameter: query"}
+            # 타입 변환
+            convert_float_to_int(request_data, ["page", "page_size"])
+            convert_to_str(request_data, ["query"])
             page = request_data.get("page", 1)
             page_size = request_data.get("page_size", 10)
             return await run_with_env(
-                run_sync(search_administrative_rule, query, page, page_size, request_data)
+                search_administrative_rule, query, page, page_size, arguments=request_data
             )
 
         return {"error": "Tool not found"}
@@ -263,7 +409,7 @@ async def search_law_tool(
         검색된 법령 목록
     """
     req = LawSearchRequest(query=query, page=page, page_size=page_size)
-    return await search_law_impl(req)
+    return await search_law_impl(req, None)
 
 
 @mcp.tool()
@@ -278,7 +424,7 @@ async def get_law_detail_tool(law_id: str):
         법령의 상세 정보와 조문 내용
     """
     req = LawDetailRequest(law_id=law_id)
-    return await get_law_detail_impl(req)
+    return await get_law_detail_impl(req, None)
 
 
 @mcp.tool()
@@ -306,7 +452,7 @@ async def search_precedent_tool(
         page_size=page_size, 
         court=court
     )
-    return await search_precedent_impl(req)
+    return await search_precedent_impl(req, None)
 
 
 @mcp.tool()
@@ -321,7 +467,7 @@ async def get_precedent_detail_tool(precedent_id: str):
         판례의 상세 정보 (판결요지, 판례내용 등)
     """
     req = PrecedentDetailRequest(precedent_id=precedent_id)
-    return await get_precedent_detail_impl(req)
+    return await get_precedent_detail_impl(req, None)
 
 
 @mcp.tool()
@@ -342,7 +488,7 @@ async def search_administrative_rule_tool(
         검색된 행정규칙 목록
     """
     req = AdminRuleSearchRequest(query=query, page=page, page_size=page_size)
-    return await search_administrative_rule_impl(req)
+    return await search_administrative_rule_impl(req, None)
 
 
 async def main():
@@ -361,8 +507,13 @@ async def main():
 
 
 if __name__ == "__main__":
-    # HTTP 서버로 실행 (uvicorn)
-    import uvicorn
-    port = int(os.environ.get('PORT', 8096))
-    uvicorn.run("src.main:api", host="0.0.0.0", port=port, reload=False)
+    # MCP 서버로 실행 (stdio 모드)
+    # HTTP 서버로 실행하려면 환경 변수 HTTP_MODE=1 설정
+    if os.environ.get("HTTP_MODE") == "1":
+        import uvicorn
+        port = int(os.environ.get('PORT', 8096))
+        uvicorn.run("src.main:api", host="0.0.0.0", port=port, reload=False)
+    else:
+        # MCP stdio 모드
+        asyncio.run(main())
 
