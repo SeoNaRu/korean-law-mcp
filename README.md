@@ -321,4 +321,15 @@ korean-law-mcp/
 - ✅ 한국어 완벽 지원
 - ✅ 복잡한 API 처리 자동화
 
+## ⚠️ 저장소 이전 안내 (Repository Moved)
+
+본 프로젝트는 더 확장된 구조와 명확한 목적을 반영하여  
+아래 저장소로 **이전 및 계속 개발**되고 있습니다.
+
+👉 **LexGuard MCP**  
+https://github.com/SeoNaRu/lexguard-mcp
+
+이 저장소(korean-law-mcp)는 더 이상 유지보수되지 않습니다.  
+최신 기능 및 업데이트는 새로운 저장소를 이용해주세요.
+
 
