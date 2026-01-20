@@ -321,19 +321,4 @@ korean-law-mcp/
 - ✅ 한국어 완벽 지원
 - ✅ 복잡한 API 처리 자동화
 
-## 📄 라이선스
-
-MIT License
-
-## 🤝 기여 및 문의
-
-- **이슈**: GitHub Issues
-- **문의**: law-mcp@example.com
-- **문서**: https://github.com/your-repo/korean-law-mcp
-
----
-
-**Made with ❤️ for Korean Legal Professionals**
-
-국가법령정보센터 Open API를 활용하여 개발되었습니다.
 
