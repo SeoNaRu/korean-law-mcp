@@ -24,5 +24,5 @@ ENV PORT=8096
 EXPOSE 8096
 
 # MCP 서버 실행
-CMD ["python", "-m", "src.law_main"]
+CMD ["python", "-m", "src.main"]
 
